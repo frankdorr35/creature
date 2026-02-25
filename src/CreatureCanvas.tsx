@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { usePetStore, type Trick } from './store';
+import { environment } from './environment';
 
 interface CanvasProps {
   width: number;
@@ -65,9 +66,9 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Environment (simple ground)
-      ctx.fillStyle = '#4CAF50';
-      ctx.fillRect(0, centerY + 20, width, height - centerY);
+      // Living Habitat Environment
+      environment.init(width, height);
+      environment.render(ctx, dt);
 
       // Animation parameters
       time += 0.05;
@@ -525,7 +526,7 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
     };
   }, [mood, isSleeping, health, width, height]);
 
-  return <canvas ref={canvasRef} width={width} height={height} style={{ display: 'block', margin: '0 auto', background: '#e0f7fa' }} />;
+  return <canvas ref={canvasRef} width={width} height={height} style={{ display: 'block', margin: '0 auto' }} />;
 };
 
 export default CreatureCanvas;

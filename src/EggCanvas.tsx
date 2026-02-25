@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { usePetStore } from './store';
+import { environment } from './environment';
 
 interface CanvasProps {
   width: number;
@@ -42,6 +43,7 @@ const EggCanvas: React.FC<CanvasProps> = ({ width, height }) => {
 
     let animationFrameId: number;
     let time = 0;
+    let lastTime = performance.now();
     
     // Hatching sequence state
     let isHatching = false;
@@ -57,11 +59,21 @@ const EggCanvas: React.FC<CanvasProps> = ({ width, height }) => {
     // Particle system update loop integrated into render
     
     const render = () => {
+      const now = performance.now();
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
       ctx.clearRect(0, 0, width, height);
 
-      // Environment (simple ground)
+      // Living Habitat Environment
+      environment.init(width, height);
+      environment.render(ctx, dt);
+
+      // Draw the dirt nest over the environment hills
       ctx.fillStyle = '#8b7355'; // Dirt/nest color
-      ctx.fillRect(0, centerY + 20, width, height - centerY);
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 40, width * 0.4, 40, 0, 0, Math.PI * 2);
+      ctx.fill();
 
       time += 0.05;
 
@@ -214,7 +226,7 @@ const EggCanvas: React.FC<CanvasProps> = ({ width, height }) => {
           ref={canvasRef} 
           width={width} 
           height={height} 
-          style={{ display: 'block', margin: '0 auto', background: '#ffe4c4', cursor: 'pointer' }}
+          style={{ display: 'block', margin: '0 auto', cursor: 'pointer' }}
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
