@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+import { sfx } from './audio';
 
 declare global {
   interface Window {
@@ -70,6 +71,7 @@ interface PetState {
   };
   lastSavedTime: number;
   isSleeping: boolean;
+  isMuted: boolean;
   interactionEvents: InteractionEvent[];
 }
 
@@ -82,6 +84,7 @@ interface PetActions {
   teach: (trick: Trick) => void;
   sleep: () => void;
   wakeUp: () => void;
+  toggleMute: () => void;
   consumeInteractionEvent: (id: string) => void;
   
   // Egg Actions
@@ -150,6 +153,7 @@ const initialState: PetState = {
     teach: 0,
   },
   lastSavedTime: Date.now(),
+  isMuted: false,
   interactionEvents: [],
 };
 
@@ -161,6 +165,7 @@ export const usePetStore = create<PetStore>()(
       feed: () => {
         set((state) => {
             if (state.isSleeping || Date.now() - state.cooldowns.feed < ACTION_COOLDOWNS_MS.feed) return state;
+            sfx.init(); sfx.playFeed();
             const newHunger = clamp(state.hunger + 30);
             return {
                 hunger: newHunger,
@@ -177,6 +182,7 @@ export const usePetStore = create<PetStore>()(
       giveWater: () => {
         set((state) => {
             if (state.isSleeping || Date.now() - state.cooldowns.giveWater < ACTION_COOLDOWNS_MS.giveWater) return state;
+            sfx.init(); sfx.playWater();
             const newThirst = clamp(state.thirst + 40);
             return {
                 thirst: newThirst,
@@ -193,6 +199,7 @@ export const usePetStore = create<PetStore>()(
       play: () => {
         set((state) => {
             if (state.isSleeping || Date.now() - state.cooldowns.play < ACTION_COOLDOWNS_MS.play) return state;
+            sfx.init(); sfx.playPlay();
             const newHappiness = clamp(state.happiness + 20);
             const newEnergy = clamp(state.energy - 10);
             return {
@@ -211,6 +218,7 @@ export const usePetStore = create<PetStore>()(
       pet: () => {
         set((state) => {
             if (state.isSleeping || Date.now() - state.cooldowns.pet < ACTION_COOLDOWNS_MS.pet) return state;
+            sfx.init(); sfx.playPet();
             const newHappiness = clamp(state.happiness + 10);
             return {
                 happiness: newHappiness,
@@ -236,6 +244,10 @@ export const usePetStore = create<PetStore>()(
               const newProgress = Math.min(100, trickData.progress + learningBonus);
               const learned = newProgress >= 100;
               
+              sfx.init();
+              if (learned) sfx.playTeachSuccess();
+              else sfx.playTeachFail();
+
               const newEnergy = clamp(state.energy - 15);
 
               return {
@@ -268,6 +280,13 @@ export const usePetStore = create<PetStore>()(
       wakeUp: () => {
           set((state) => ({ isSleeping: false, mood: determineMood({...state, isSleeping: false}), lastSavedTime: Date.now() }));
       },
+      toggleMute: () => {
+          set((state) => {
+              const newMuted = !state.isMuted;
+              sfx.setMuted(newMuted);
+              return { isMuted: newMuted, lastSavedTime: Date.now() }
+          });
+      },
       consumeInteractionEvent: (id) => {
           set((state) => ({
              interactionEvents: state.interactionEvents.filter(e => e.id !== id)
@@ -278,6 +297,7 @@ export const usePetStore = create<PetStore>()(
       warmEgg: () => {
           set((state) => {
               if (!state.eggPhase) return state;
+              sfx.init(); sfx.playEggWarmth();
               const newWarmth = clamp(state.warmth + 15);
               return { warmth: newWarmth, lastSavedTime: Date.now() };
           });
@@ -306,6 +326,7 @@ export const usePetStore = create<PetStore>()(
       steadyEgg: () => {
           set((state) => {
               if (!state.eggPhase || !state.isWobbling) return state;
+              sfx.init(); sfx.playEggWobble();
               return { isWobbling: false, stability: 100, lastSavedTime: Date.now() };
           });
       },
@@ -322,7 +343,8 @@ export const usePetStore = create<PetStore>()(
       },
 
       hatch: () => {
-          set({ eggPhase: false, bond: 100, hunger: MAX_STAT, thirst: MAX_STAT, happiness: MAX_STAT, energy: MAX_STAT, mood: 'happy' });
+          sfx.init(); sfx.playHatching();
+          set(() => ({ eggPhase: false, bond: 100, hunger: MAX_STAT, thirst: MAX_STAT, happiness: MAX_STAT, energy: MAX_STAT, mood: 'happy', lastSavedTime: Date.now() }));
       },
 
       updateStatsOverTime: () => {
@@ -360,9 +382,16 @@ export const usePetStore = create<PetStore>()(
                  };
              }
 
+             const newMood = determineMood(newState);
+             if (newMood === 'sad' && state.mood !== 'sad') {
+                 sfx.init(); sfx.playSad();
+             } else if (newMood === 'sad' && Math.random() < 0.05) { // 5% chance per tick to whimper if sad
+                 sfx.init(); sfx.playSad();
+             }
+
              return {
                  ...newState,
-                 mood: determineMood(newState)
+                 mood: newMood
              };
          });
       },

@@ -11,6 +11,8 @@ function App() {
     bond,
     stability,
     isWobbling,
+    isMuted,
+    toggleMute,
     warmEgg,
     talkToEgg,
     singToEgg,
@@ -126,6 +128,7 @@ function App() {
              <div className="status-readout">
                 <h1>Virtual Egg</h1>
                 <p className={isWobbling ? 'text-urgent' : ''}>{hint}</p>
+                <button onClick={toggleMute} style={{marginTop: '10px', fontSize: '1rem', padding: '4px 8px'}}>{isMuted ? '🔇 Unmute' : '🔊 Mute'}</button>
              </div>
              <div className="stats-panel wide-panel">
                       <StatBar label="Warmth" value={warmth} color="#e67e22" />
@@ -141,6 +144,7 @@ function App() {
              <div className="status-readout">
                 <h1>Virtual Pet</h1>
                 <p>Mood: <strong>{mood}</strong> {isSleeping ? '(Asleep)' : ''}</p>
+                <button onClick={toggleMute} style={{marginTop: '10px', fontSize: '1rem', padding: '4px 8px'}}>{isMuted ? '🔇 Unmute' : '🔊 Mute'}</button>
              </div>
              <div className="stats-panel">
                 <StatBar label="Health" value={health} color="#e74c3c" />
