@@ -1,0 +1,205 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: #242424;
+  background-color: #f5f5f5;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 1.5em;
+  line-height: 1.1;
+  margin: 0 0 10px 0;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color 0.25s,
+    transform 0.1s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+button:hover {
+  border-color: #646cff;
+  transform: translateY(-2px);
+}
+button:active {
+  transform: translateY(1px);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+button.learned {
+  background-color: #4caf50;
+  color: white;
+  border-color: #388e3c;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  transition: background-color 2s ease;
+}
+
+.app-container.day {
+  background-color: #87ceeb; /* Sky blue */
+}
+
+.app-container.night {
+  background-color: #2c3e50; /* Deep blue/grey */
+  color: #ecf0f1;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.night .header {
+  background: rgba(44, 62, 80, 0.9);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.status-readout {
+  flex: 1;
+}
+
+.status-readout p {
+  margin: 0;
+  font-size: 1.1em;
+  text-transform: capitalize;
+}
+
+.stats-panel {
+  flex: 2;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.stat-container {
+  display: flex;
+  align-items: center;
+  font-size: 0.9em;
+}
+
+.stat-label {
+  width: 80px;
+  font-weight: bold;
+}
+
+.stat-bar-bg {
+  flex: 1;
+  height: 12px;
+  background: #e0e0e0;
+  border-radius: 6px;
+  margin: 0 10px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.stat-bar-fill {
+  height: 100%;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
+}
+
+.stat-value {
+  width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.canvas-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  /* background managed by canvas itself, but we can add a frame */
+}
+
+.canvas-container canvas {
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: filter 2s ease;
+}
+
+.night .canvas-container canvas {
+  filter: brightness(0.6) sepia(0.2) hue-rotate(180deg);
+}
+
+.controls {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-top: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.night .controls {
+  background: rgba(44, 62, 80, 0.9);
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.primary-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.teaching-actions {
+  text-align: center;
+}
+
+.teaching-actions h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.1em;
+  color: #666;
+}
+
+.night .teaching-actions h3 {
+  color: #aaa;
+}
+
+.tricks-list {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
