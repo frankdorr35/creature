@@ -73,6 +73,49 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
       // Animation parameters
       time += 0.05;
 
+      let yOffset = 0;
+      let bounceSpeed = 1;
+      let scaleY = 1;
+      let scaleX = 1;
+      let rotate = 0;
+      let eyeColor = 'white';
+      
+      // Mood adjustments
+      switch (mood) {
+          case 'happy':
+              bounceSpeed = 1.5;
+              yOffset = Math.sin(time * bounceSpeed) * 15;
+              break;
+          case 'sad':
+              bounceSpeed = 0.5;
+              yOffset = Math.sin(time * bounceSpeed) * 5;
+              scaleY = 0.9;
+              break;
+          case 'sick':
+              bounceSpeed = 0.2;
+              yOffset = Math.sin(time * bounceSpeed) * 2;
+              scaleY = 0.8;
+              eyeColor = '#ffcccc';
+              break;
+          case 'eating':
+              yOffset = Math.abs(Math.sin(time * 3)) * 10;
+              break;
+          case 'drinking':
+              yOffset = Math.abs(Math.sin(time * 3)) * 10;
+              break;
+          case 'playing':
+              bounceSpeed = 2;
+              yOffset = Math.abs(Math.sin(time * bounceSpeed * 2)) * 20;
+              break;
+          case 'sleeping':
+              yOffset = 10 + Math.sin(time * 0.5) * 5; // Slow breathing
+              scaleY = 0.85;
+              break;
+          default:
+              yOffset = Math.sin(time) * 5;
+              break;
+      }
+
       // Handle Interaction Events
       const events = usePetStore.getState().interactionEvents;
       if (events.length > 0) {
@@ -130,49 +173,6 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
           if (activeParticles.length > 30) {
               activeParticles = activeParticles.slice(activeParticles.length - 30);
           }
-      }
-      
-      let yOffset = 0;
-      let bounceSpeed = 1;
-      let scaleY = 1;
-      let scaleX = 1;
-      let rotate = 0;
-      let eyeColor = 'white';
-      
-      // Mood adjustments
-      switch (mood) {
-          case 'happy':
-              bounceSpeed = 1.5;
-              yOffset = Math.sin(time * bounceSpeed) * 15;
-              break;
-          case 'sad':
-              bounceSpeed = 0.5;
-              yOffset = Math.sin(time * bounceSpeed) * 5;
-              scaleY = 0.9;
-              break;
-          case 'sick':
-              bounceSpeed = 0.2;
-              yOffset = Math.sin(time * bounceSpeed) * 2;
-              scaleY = 0.8;
-              eyeColor = '#ffcccc';
-              break;
-          case 'eating':
-              yOffset = Math.abs(Math.sin(time * 3)) * 10;
-              break;
-          case 'drinking':
-              yOffset = Math.abs(Math.sin(time * 3)) * 10;
-              break;
-          case 'playing':
-              bounceSpeed = 2;
-              yOffset = Math.abs(Math.sin(time * bounceSpeed * 2)) * 20;
-              break;
-          case 'sleeping':
-              yOffset = 10 + Math.sin(time * 0.5) * 5; // Slow breathing
-              scaleY = 0.85;
-              break;
-          default:
-              yOffset = Math.sin(time) * 5;
-              break;
       }
 
       // Wandering logic
