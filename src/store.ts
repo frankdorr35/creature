@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      saveState: (data: string) => void;
+      loadState: () => Promise<string | null>;
+    }
+  }
+}
 
 // Constants for needs and decay
 export const MAX_STAT = 100;
@@ -402,8 +411,32 @@ export const usePetStore = create<PetStore>()(
       }
     }),
     {
-      name: 'creature-storage', // name of the item in the storage (must be unique)
-      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
+      name: 'creature-storage',
+      storage: createJSONStorage(() => {
+         const electronStorage: StateStorage = {
+             getItem: async (name: string): Promise<string | null> => {
+                 if (window.electronAPI) {
+                     return await window.electronAPI.loadState();
+                 }
+                 return localStorage.getItem(name);
+             },
+             setItem: (name: string, value: string): void => {
+                 if (window.electronAPI) {
+                     window.electronAPI.saveState(value);
+                 } else {
+                     localStorage.setItem(name, value);
+                 }
+             },
+             removeItem: (name: string): void => {
+                 if (window.electronAPI) {
+                     window.electronAPI.saveState('');
+                 } else {
+                     localStorage.removeItem(name);
+                 }
+             },
+         };
+         return electronStorage;
+      }),
     },
   ),
 );
