@@ -8,6 +8,20 @@ interface CanvasProps {
 
 interface Sparkle { x: number; y: number; age: number; life: number; size: number }
 
+interface InteractionParticle {
+    id: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    age: number;
+    life: number;
+    type: 'crumb' | 'droplet' | 'confetti' | 'heart' | 'star' | 'puff' | 'shell' | 'text';
+    text?: string;
+    size: number;
+    color: string;
+}
+
 const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -41,6 +55,7 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
     let trickDuration = 0;
     let trickTime = 0;
     let sparkles: Sparkle[] = [];
+    let activeParticles: InteractionParticle[] = [];
     
     // Draw loop
     const render = () => {
@@ -56,6 +71,65 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
 
       // Animation parameters
       time += 0.05;
+
+      // Handle Interaction Events
+      const events = usePetStore.getState().interactionEvents;
+      if (events.length > 0) {
+          events.forEach(e => {
+              let count = 0;
+              let pType: InteractionParticle['type'] = 'crumb';
+              let color = '#fff';
+              
+              switch(e.type) {
+                  case 'feed': count = 6; pType = 'crumb'; color = '#8B4513'; break;
+                  case 'water': count = 8; pType = 'droplet'; color = '#4da6ff'; break;
+                  case 'play': count = 12; pType = 'confetti'; break;
+                  case 'pet': count = 4; pType = 'heart'; color = '#ff4d4d'; break;
+                  case 'teachSuccess': count = 10; pType = 'star'; color = '#ffd700'; break;
+                  case 'teachFail': count = 5; pType = 'puff'; color = '#999'; break;
+                  case 'hatch': count = 15; pType = 'shell'; color = '#fff'; break;
+              }
+
+              for(let i=0; i<count; i++) {
+                 let vx = (Math.random() - 0.5) * 100;
+                 let vy = (Math.random() - 0.5) * 100;
+                 let life = 1 + Math.random();
+                 let size = 3 + Math.random() * 5;
+                 let spawnX = x + (Math.random() - 0.5) * 50;
+                 let spawnY = centerY + yOffset + (Math.random() - 0.5) * 50;
+
+                 if (e.type === 'feed') { spawnY = centerY - 60 - Math.random() * 20; vy = 50 + Math.random() * 50; vx *= 0.2; }
+                 else if (e.type === 'water') { spawnY = centerY + 20; vy = -50 - Math.random() * 50; }
+                 else if (e.type === 'pet') { vy = -30 - Math.random() * 40; vx *= 0.3; size = 8 + Math.random() * 4; }
+                 else if (e.type === 'play' || e.type === 'hatch') { vy = -80 - Math.random() * 100; vx *= 2; }
+                 else if (e.type === 'teachSuccess') { vy = -100 - Math.random() * 50; vx = (i % 2 === 0 ? 1 : -1) * 50; }
+                 else if (e.type === 'teachFail') { vy = -20 - Math.random() * 20; vx *= 0.5; size = 6 + Math.random() * 4; }
+
+                 if (e.type === 'play') {
+                     const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+                     color = colors[Math.floor(Math.random() * colors.length)];
+                 }
+
+                 activeParticles.push({
+                     id: Math.random().toString(),
+                     x: spawnX, y: spawnY, vx, vy, age: 0, life, type: pType, size, color
+                 });
+              }
+              
+              if (e.text) {
+                 activeParticles.push({
+                     id: Math.random().toString(),
+                     x: x, y: centerY - 60, vx: 0, vy: -30, age: 0, life: 2, type: 'text', size: 16, color: '#333', text: e.text
+                 });
+              }
+              
+              usePetStore.getState().consumeInteractionEvent(e.id);
+          });
+
+          if (activeParticles.length > 30) {
+              activeParticles = activeParticles.slice(activeParticles.length - 30);
+          }
+      }
       
       let yOffset = 0;
       let bounceSpeed = 1;
@@ -370,6 +444,76 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
           }
           ctx.restore();
       }
+
+      // Draw active interaction particles
+      for (let i = activeParticles.length - 1; i >= 0; i--) {
+         let p = activeParticles[i];
+         p.age += dt;
+         if (p.age >= p.life) { activeParticles.splice(i, 1); continue; }
+         
+         p.x += p.vx * dt;
+         p.y += p.vy * dt;
+         
+         // Physics updates
+         if (p.type === 'crumb') { p.vy += 250 * dt; } 
+         else if (p.type === 'droplet') { p.vy += 300 * dt; } 
+         else if (p.type === 'confetti' || p.type === 'shell') { p.vy += 200 * dt; } 
+         else if (p.type === 'star') { p.vx += Math.cos(p.age * 8) * 300 * dt; } // Spiral
+         else if (p.type === 'puff') { p.vx += Math.sin(p.age * 5) * 50 * dt; p.size += 15 * dt; } // Expand 
+         
+         ctx.globalAlpha = 1 - Math.pow(p.age / p.life, 2); // fade curve
+         ctx.fillStyle = p.color;
+         
+         if (p.type === 'text' && p.text) {
+             ctx.font = 'bold 18px "Comic Sans MS", cursive, sans-serif';
+             ctx.textAlign = 'center';
+             ctx.strokeStyle = 'white';
+             ctx.lineWidth = 4;
+             ctx.strokeText(p.text, p.x, p.y);
+             ctx.fillText(p.text, p.x, p.y);
+         } else if (p.type === 'heart') {
+             ctx.beginPath();
+             const h = p.size;
+             ctx.moveTo(p.x, p.y + h/4);
+             ctx.quadraticCurveTo(p.x, p.y, p.x - h/2, p.y);
+             ctx.quadraticCurveTo(p.x - h, p.y, p.x - h, p.y + h/2.5);
+             ctx.quadraticCurveTo(p.x - h, p.y + h, p.x, p.y + h*1.5);
+             ctx.quadraticCurveTo(p.x + h, p.y + h, p.x + h, p.y + h/2.5);
+             ctx.quadraticCurveTo(p.x + h, p.y, p.x + h/2, p.y);
+             ctx.quadraticCurveTo(p.x, p.y, p.x, p.y + h/4);
+             ctx.fill();
+         } else if (p.type === 'star') {
+             ctx.beginPath();
+             const spikes = 5;
+             const rot = Math.PI / 2 * 3;
+             const step = Math.PI / spikes;
+             for (let j=0; j<spikes; j++) {
+                 ctx.lineTo(p.x + Math.cos(rot + step * j*2) * p.size, p.y + Math.sin(rot + step * j*2) * p.size);
+                 ctx.lineTo(p.x + Math.cos(rot + step * (j*2+1)) * (p.size/2), p.y + Math.sin(rot + step * (j*2+1)) * (p.size/2));
+             }
+             ctx.closePath();
+             ctx.fill();
+         } else if (p.type === 'droplet') {
+             ctx.beginPath();
+             ctx.arc(p.x, p.y, p.size, 0, Math.PI, false);
+             ctx.lineTo(p.x, p.y - p.size*2);
+             ctx.closePath();
+             ctx.fill();
+         } else {
+             if (p.type === 'confetti' || p.type === 'shell') {
+                 ctx.save();
+                 ctx.translate(p.x, p.y);
+                 ctx.rotate(p.age * 10);
+                 ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                 ctx.restore();
+             } else {
+                 ctx.beginPath();
+                 ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                 ctx.fill();
+             }
+         }
+      }
+      ctx.globalAlpha = 1;
 
       animationFrameId = requestAnimationFrame(render);
     };

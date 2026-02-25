@@ -33,6 +33,12 @@ export type Mood = 'happy' | 'sad' | 'sick' | 'neutral' | 'sleeping' | 'playing'
 export type Trick = 'sit' | 'spin' | 'wave' | 'dance';
 export type ParticleEffect = { id: string; type: 'music' | 'speech' | 'glow'; x: number; y: number };
 
+export interface InteractionEvent {
+   id: string;
+   type: 'feed' | 'water' | 'play' | 'pet' | 'teachSuccess' | 'teachFail' | 'hatch';
+   text?: string;
+}
+
 interface TrickState {
   learned: boolean;
   progress: number; // 0 to 100
@@ -64,6 +70,7 @@ interface PetState {
   };
   lastSavedTime: number;
   isSleeping: boolean;
+  interactionEvents: InteractionEvent[];
 }
 
 interface PetActions {
@@ -75,6 +82,7 @@ interface PetActions {
   teach: (trick: Trick) => void;
   sleep: () => void;
   wakeUp: () => void;
+  consumeInteractionEvent: (id: string) => void;
   
   // Egg Actions
   warmEgg: () => void;
@@ -142,6 +150,7 @@ const initialState: PetState = {
     teach: 0,
   },
   lastSavedTime: Date.now(),
+  interactionEvents: [],
 };
 
 export const usePetStore = create<PetStore>()(
@@ -158,7 +167,8 @@ export const usePetStore = create<PetStore>()(
                 health: calculateHealth(newHunger, state.thirst, state.happiness),
                 mood: 'eating',
                 cooldowns: { ...state.cooldowns, feed: Date.now() },
-                lastSavedTime: Date.now()
+                lastSavedTime: Date.now(),
+                interactionEvents: [...state.interactionEvents, { id: Math.random().toString(), type: 'feed', text: '+30 Hunger' }]
             };
         });
         setTimeout(() => set((state) => ({ mood: determineMood(state) })), 2000);
@@ -173,7 +183,8 @@ export const usePetStore = create<PetStore>()(
                 health: calculateHealth(state.hunger, newThirst, state.happiness),
                 mood: 'drinking',
                 cooldowns: { ...state.cooldowns, giveWater: Date.now() },
-                lastSavedTime: Date.now()
+                lastSavedTime: Date.now(),
+                interactionEvents: [...state.interactionEvents, { id: Math.random().toString(), type: 'water', text: '+40 Thirst' }]
             };
         });
         setTimeout(() => set((state) => ({ mood: determineMood(state) })), 2000);
@@ -190,7 +201,8 @@ export const usePetStore = create<PetStore>()(
                 health: calculateHealth(state.hunger, state.thirst, newHappiness),
                 mood: 'playing',
                 cooldowns: { ...state.cooldowns, play: Date.now() },
-                lastSavedTime: Date.now()
+                lastSavedTime: Date.now(),
+                interactionEvents: [...state.interactionEvents, { id: Math.random().toString(), type: 'play', text: '+20 Happiness' }]
             };
         });
          setTimeout(() => set((state) => ({ mood: determineMood(state) })), 2000);
@@ -205,7 +217,8 @@ export const usePetStore = create<PetStore>()(
                 health: calculateHealth(state.hunger, state.thirst, newHappiness),
                 mood: 'happy',
                 cooldowns: { ...state.cooldowns, pet: Date.now() },
-                lastSavedTime: Date.now()
+                lastSavedTime: Date.now(),
+                interactionEvents: [...state.interactionEvents, { id: Math.random().toString(), type: 'pet', text: '♥' }]
             };
         });
         setTimeout(() => set((state) => ({ mood: determineMood(state) })), 2000);
@@ -221,6 +234,7 @@ export const usePetStore = create<PetStore>()(
               // Learning is easier if happier
               const learningBonus = state.happiness > 80 ? 15 : 5;
               const newProgress = Math.min(100, trickData.progress + learningBonus);
+              const learned = newProgress >= 100;
               
               const newEnergy = clamp(state.energy - 15);
 
@@ -230,13 +244,18 @@ export const usePetStore = create<PetStore>()(
                       ...state.tricks,
                       [trick]: {
                           ...trickData,
-                          learned: newProgress >= 100,
+                          learned,
                           progress: newProgress
                       }
                   },
                   cooldowns: { ...state.cooldowns, teach: Date.now() },
-                  mood: newProgress >= 100 ? 'happy' : 'playing',
-                  lastSavedTime: Date.now()
+                  mood: learned ? 'happy' : 'playing',
+                  lastSavedTime: Date.now(),
+                  interactionEvents: [...state.interactionEvents, { 
+                      id: Math.random().toString(), 
+                      type: learned ? 'teachSuccess' : 'teachFail', 
+                      text: learned ? `Learned ${trick.charAt(0).toUpperCase() + trick.slice(1)}!` : `+${learningBonus}% ${trick.charAt(0).toUpperCase() + trick.slice(1)}`
+                  }]
               }
           })
           setTimeout(() => set((state) => ({ mood: determineMood(state) })), 2000);
@@ -248,6 +267,11 @@ export const usePetStore = create<PetStore>()(
 
       wakeUp: () => {
           set((state) => ({ isSleeping: false, mood: determineMood({...state, isSleeping: false}), lastSavedTime: Date.now() }));
+      },
+      consumeInteractionEvent: (id) => {
+          set((state) => ({
+             interactionEvents: state.interactionEvents.filter(e => e.id !== id)
+          }));
       },
 
       // --- EGG ACTIONS ---
