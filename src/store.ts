@@ -12,6 +12,14 @@ const DECAY_RATES_PER_HOUR = {
   warmth: 15, // Egg warmth decays faster
 };
 
+export const ACTION_COOLDOWNS_MS = {
+  feed: 30000,
+  giveWater: 25000,
+  play: 45000,
+  pet: 15000,
+  teach: 60000,
+};
+
 export type Mood = 'happy' | 'sad' | 'sick' | 'neutral' | 'sleeping' | 'playing' | 'eating' | 'drinking';
 export type Trick = 'sit' | 'spin' | 'wave' | 'dance';
 export type ParticleEffect = { id: string; type: 'music' | 'speech' | 'glow'; x: number; y: number };
@@ -38,6 +46,13 @@ interface PetState {
   health: number;
   mood: Mood;
   tricks: Record<Trick, TrickState>;
+  cooldowns: {
+    feed: number;
+    giveWater: number;
+    play: number;
+    pet: number;
+    teach: number;
+  };
   lastSavedTime: number;
   isSleeping: boolean;
 }
@@ -110,6 +125,13 @@ const initialState: PetState = {
     wave: { learned: false, progress: 0 },
     dance: { learned: false, progress: 0 },
   },
+  cooldowns: {
+    feed: 0,
+    giveWater: 0,
+    play: 0,
+    pet: 0,
+    teach: 0,
+  },
   lastSavedTime: Date.now(),
 };
 
@@ -120,12 +142,13 @@ export const usePetStore = create<PetStore>()(
 
       feed: () => {
         set((state) => {
-            if (state.isSleeping) return state;
+            if (state.isSleeping || Date.now() - state.cooldowns.feed < ACTION_COOLDOWNS_MS.feed) return state;
             const newHunger = clamp(state.hunger + 30);
             return {
                 hunger: newHunger,
                 health: calculateHealth(newHunger, state.thirst, state.happiness),
                 mood: 'eating',
+                cooldowns: { ...state.cooldowns, feed: Date.now() },
                 lastSavedTime: Date.now()
             };
         });
@@ -134,12 +157,13 @@ export const usePetStore = create<PetStore>()(
 
       giveWater: () => {
         set((state) => {
-            if (state.isSleeping) return state;
+            if (state.isSleeping || Date.now() - state.cooldowns.giveWater < ACTION_COOLDOWNS_MS.giveWater) return state;
             const newThirst = clamp(state.thirst + 40);
             return {
                 thirst: newThirst,
                 health: calculateHealth(state.hunger, newThirst, state.happiness),
                 mood: 'drinking',
+                cooldowns: { ...state.cooldowns, giveWater: Date.now() },
                 lastSavedTime: Date.now()
             };
         });
@@ -148,7 +172,7 @@ export const usePetStore = create<PetStore>()(
 
       play: () => {
         set((state) => {
-            if (state.isSleeping) return state;
+            if (state.isSleeping || Date.now() - state.cooldowns.play < ACTION_COOLDOWNS_MS.play) return state;
             const newHappiness = clamp(state.happiness + 20);
             const newEnergy = clamp(state.energy - 10);
             return {
@@ -156,6 +180,7 @@ export const usePetStore = create<PetStore>()(
                 energy: newEnergy,
                 health: calculateHealth(state.hunger, state.thirst, newHappiness),
                 mood: 'playing',
+                cooldowns: { ...state.cooldowns, play: Date.now() },
                 lastSavedTime: Date.now()
             };
         });
@@ -164,12 +189,13 @@ export const usePetStore = create<PetStore>()(
 
       pet: () => {
         set((state) => {
-            if (state.isSleeping) return state;
+            if (state.isSleeping || Date.now() - state.cooldowns.pet < ACTION_COOLDOWNS_MS.pet) return state;
             const newHappiness = clamp(state.happiness + 10);
             return {
                 happiness: newHappiness,
                 health: calculateHealth(state.hunger, state.thirst, newHappiness),
                 mood: 'happy',
+                cooldowns: { ...state.cooldowns, pet: Date.now() },
                 lastSavedTime: Date.now()
             };
         });
@@ -178,7 +204,7 @@ export const usePetStore = create<PetStore>()(
 
       teach: (trick) => {
           set((state) => {
-              if (state.isSleeping || state.energy < 20 || state.happiness < 40) return state;
+              if (state.isSleeping || state.energy < 20 || state.happiness < 40 || Date.now() - state.cooldowns.teach < ACTION_COOLDOWNS_MS.teach) return state;
 
               const trickData = state.tricks[trick];
               if (trickData.learned) return state;
@@ -199,6 +225,7 @@ export const usePetStore = create<PetStore>()(
                           progress: newProgress
                       }
                   },
+                  cooldowns: { ...state.cooldowns, teach: Date.now() },
                   mood: newProgress >= 100 ? 'happy' : 'playing',
                   lastSavedTime: Date.now()
               }

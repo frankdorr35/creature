@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { usePetStore, MAX_STAT } from './store';
+import { useEffect, useState } from 'react';
+import { usePetStore, MAX_STAT, ACTION_COOLDOWNS_MS } from './store';
 import CreatureCanvas from './CreatureCanvas';
 import EggCanvas from './EggCanvas';
 import './App.css';
@@ -24,6 +24,7 @@ function App() {
     health,
     mood,
     tricks,
+    cooldowns,
     feed,
     giveWater,
     play,
@@ -35,6 +36,14 @@ function App() {
     calculateOfflineDecay,
     updateStatsOverTime
   } = usePetStore();
+
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Handle ticking timer specifically for cooldown button renders
+  useEffect(() => {
+     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+     return () => clearInterval(timer);
+  }, []);
 
   // Handle offline decay on mount and regular updates
   useEffect(() => {
@@ -113,21 +122,19 @@ function App() {
           else if (bond > 80) hint = "It's almost ready to hatch!";
 
           return (
-             <header className="header" style={{flexDirection: 'column', gap: '10px'}}>
-               <div style={{display: 'flex', justifyContent: 'space-between', width: '100%'}}>
-                   <div className="status-readout">
-                      <h1>Virtual Egg</h1>
-                      <p style={{ color: isWobbling ? '#e74c3c' : 'inherit' }}>{hint}</p>
-                   </div>
-                   <div className="stats-panel" style={{ flex: 1.5 }}>
+          <header className="header full-width-header column-header">
+             <div className="status-readout">
+                <h1>Virtual Egg</h1>
+                <p className={isWobbling ? 'text-urgent' : ''}>{hint}</p>
+             </div>
+             <div className="stats-panel wide-panel">
                       <StatBar label="Warmth" value={warmth} color="#e67e22" />
                       <StatBar label="Bond" value={bond} color="#9b59b6" />
                       <StatBar label="Stability" value={stability} color="#3498db" />
-                   </div>
-               </div>
-             </header>
-          );
-      }
+             </div>
+          </header>
+      );
+  };
 
       return (
           <header className="header">
@@ -166,13 +173,34 @@ function App() {
           );
       }
 
+      const getCooldown = (key: keyof typeof ACTION_COOLDOWNS_MS) => {
+         const lastUsed = cooldowns[key];
+         const delay = ACTION_COOLDOWNS_MS[key];
+         const remaining = Math.max(0, delay - (currentTime - lastUsed));
+         return Math.ceil(remaining / 1000); // Seconds
+      };
+
+      const feedCd = getCooldown('feed');
+      const waterCd = getCooldown('giveWater');
+      const playCd = getCooldown('play');
+      const petCd = getCooldown('pet');
+      const teachCd = getCooldown('teach');
+
       return (
           <footer className="controls">
               <div className="primary-actions">
-                <button onClick={feed} disabled={isSleeping}>Feed</button>
-                <button onClick={giveWater} disabled={isSleeping}>Water</button>
-                <button onClick={play} disabled={isSleeping}>Play</button>
-                <button onClick={pet} disabled={isSleeping}>Pet</button>
+                <button onClick={feed} disabled={isSleeping || feedCd > 0}>
+                    {feedCd > 0 ? `Feed (${feedCd}s)` : 'Feed'}
+                </button>
+                <button onClick={giveWater} disabled={isSleeping || waterCd > 0}>
+                    {waterCd > 0 ? `Water (${waterCd}s)` : 'Water'}
+                </button>
+                <button onClick={play} disabled={isSleeping || playCd > 0}>
+                    {playCd > 0 ? `Play (${playCd}s)` : 'Play'}
+                </button>
+                <button onClick={pet} disabled={isSleeping || petCd > 0}>
+                    {petCd > 0 ? `Pet (${petCd}s)` : 'Pet'}
+                </button>
                 <button onClick={isSleeping ? wakeUp : sleep}>{isSleeping ? 'Wake Up' : 'Sleep'}</button>
               </div>
               
@@ -183,10 +211,10 @@ function App() {
                     <button 
                       key={trick} 
                       onClick={() => teach(trick)}
-                      disabled={isSleeping || tricks[trick].learned}
+                      disabled={isSleeping || tricks[trick].learned || teachCd > 0}
                       className={tricks[trick].learned ? 'learned' : ''}
                     >
-                      {trick} {tricks[trick].learned ? '✓' : `(${Math.round(tricks[trick].progress)}%)`}
+                      {trick} {tricks[trick].learned ? '✓' : `(${Math.round(tricks[trick].progress)}%)`} {teachCd > 0 && !tricks[trick].learned ? `(${teachCd}s)` : ''}
                     </button>
                   ))}
                 </div>
