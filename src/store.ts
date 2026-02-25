@@ -267,13 +267,43 @@ export const usePetStore = create<PetStore>()(
 
       updateStatsOverTime: () => {
          // This is intended to be called by a requestAnimationFrame loop or setInterval
-         set(() => {
+         set((state) => {
              const now = Date.now();
-             // Just update lastSavedTime frequently when running, actual decay can be handled in offline calc
-             // or smaller increments here. For simplicity, we'll rely on offline decay math applied frequently.
-             
-             // Simple tick decay
-             return { lastSavedTime: now };
+             const TICKS_PER_HOUR = 720; // 5 second ticks
+
+             let newState = { ...state, lastSavedTime: now };
+
+             if (state.eggPhase) {
+                 const newWarmth = clamp(state.warmth - (DECAY_RATES_PER_HOUR.warmth / TICKS_PER_HOUR));
+                 newState.warmth = newWarmth;
+             } else {
+                 const newHunger = clamp(state.hunger - (DECAY_RATES_PER_HOUR.hunger / TICKS_PER_HOUR));
+                 const newThirst = clamp(state.thirst - (DECAY_RATES_PER_HOUR.thirst / TICKS_PER_HOUR));
+                 const newHappiness = clamp(state.happiness - (DECAY_RATES_PER_HOUR.happiness / TICKS_PER_HOUR));
+                 
+                 let newEnergy = state.energy;
+                 if (state.isSleeping) {
+                     newEnergy = clamp(state.energy + (20 / TICKS_PER_HOUR));
+                 } else {
+                     newEnergy = clamp(state.energy - (DECAY_RATES_PER_HOUR.energy / TICKS_PER_HOUR));
+                 }
+
+                 const newHealth = calculateHealth(newHunger, newThirst, newHappiness);
+
+                 newState = {
+                     ...newState,
+                     hunger: newHunger,
+                     thirst: newThirst,
+                     happiness: newHappiness,
+                     energy: newEnergy,
+                     health: newHealth
+                 };
+             }
+
+             return {
+                 ...newState,
+                 mood: determineMood(newState)
+             };
          });
       },
 

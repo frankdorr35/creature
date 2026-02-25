@@ -40,11 +40,10 @@ function App() {
   useEffect(() => {
     calculateOfflineDecay();
 
-    // Regular tick to update time and trigger offline calc periodically
+    // Regular tick to update time and trigger real-time decay periodically
     const interval = setInterval(() => {
         updateStatsOverTime();
-        calculateOfflineDecay();
-    }, 60000); // Check every minute
+    }, 5000); // Tick every 5 seconds
 
     return () => clearInterval(interval);
   }, [calculateOfflineDecay, updateStatsOverTime]);
