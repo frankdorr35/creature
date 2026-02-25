@@ -9,10 +9,12 @@ const DECAY_RATES_PER_HOUR = {
   thirst: 15,
   happiness: 5,
   energy: 8,
+  warmth: 15, // Egg warmth decays faster
 };
 
 export type Mood = 'happy' | 'sad' | 'sick' | 'neutral' | 'sleeping' | 'playing' | 'eating' | 'drinking';
 export type Trick = 'sit' | 'spin' | 'wave' | 'dance';
+export type ParticleEffect = { id: string; type: 'music' | 'speech' | 'glow'; x: number; y: number };
 
 interface TrickState {
   learned: boolean;
@@ -20,6 +22,15 @@ interface TrickState {
 }
 
 interface PetState {
+  // Egg Phase Stats
+  eggPhase: boolean;
+  warmth: number;
+  bond: number;
+  stability: number;
+  isWobbling: boolean;
+  particles: ParticleEffect[];
+
+  // Creature Stats
   hunger: number;
   thirst: number;
   happiness: number;
@@ -32,6 +43,7 @@ interface PetState {
 }
 
 interface PetActions {
+  // Creature Actions
   feed: () => void;
   giveWater: () => void;
   play: () => void;
@@ -39,6 +51,16 @@ interface PetActions {
   teach: (trick: Trick) => void;
   sleep: () => void;
   wakeUp: () => void;
+  
+  // Egg Actions
+  warmEgg: () => void;
+  talkToEgg: () => void;
+  singToEgg: () => void;
+  steadyEgg: () => void;
+  triggerWobble: () => void;
+  removeParticle: (id: string) => void;
+  hatch: () => void;
+
   updateStatsOverTime: () => void;
   calculateOfflineDecay: () => void;
 }
@@ -68,6 +90,13 @@ function determineMood(state: PetState): Mood {
 }
 
 const initialState: PetState = {
+  eggPhase: true,
+  warmth: 50,
+  bond: 0,
+  stability: 100,
+  isWobbling: false,
+  particles: [],
+
   hunger: MAX_STAT,
   thirst: MAX_STAT,
   happiness: MAX_STAT,
@@ -185,6 +214,57 @@ export const usePetStore = create<PetStore>()(
           set((state) => ({ isSleeping: false, mood: determineMood({...state, isSleeping: false}), lastSavedTime: Date.now() }));
       },
 
+      // --- EGG ACTIONS ---
+      warmEgg: () => {
+          set((state) => {
+              if (!state.eggPhase) return state;
+              const newWarmth = clamp(state.warmth + 15);
+              return { warmth: newWarmth, lastSavedTime: Date.now() };
+          });
+      },
+
+      talkToEgg: () => {
+         set((state) => {
+             if (!state.eggPhase) return state;
+             const bondIncrease = state.stability < 50 ? 2 : 5; // Reduced growth if unstable
+             const newBond = Math.min(100, state.bond + bondIncrease);
+             const newParticle: ParticleEffect = { id: Math.random().toString(), type: 'speech', x: Math.random() * 40 - 20, y: Math.random() * -20 - 40 };
+             return { bond: newBond, particles: [...state.particles, newParticle], lastSavedTime: Date.now() };
+         });
+      },
+
+      singToEgg: () => {
+         set((state) => {
+             if (!state.eggPhase || state.warmth < 60) return state;
+             const bondIncrease = state.stability < 50 ? 5 : 10;
+             const newBond = Math.min(100, state.bond + bondIncrease);
+             const newParticle: ParticleEffect = { id: Math.random().toString(), type: 'music', x: Math.random() * 60 - 30, y: Math.random() * -30 - 50 };
+             return { bond: newBond, particles: [...state.particles, newParticle], lastSavedTime: Date.now() };
+         });
+      },
+
+      steadyEgg: () => {
+          set((state) => {
+              if (!state.eggPhase || !state.isWobbling) return state;
+              return { isWobbling: false, stability: 100, lastSavedTime: Date.now() };
+          });
+      },
+
+      triggerWobble: () => {
+          set((state) => {
+              if (!state.eggPhase) return state;
+              return { isWobbling: true, lastSavedTime: Date.now() };
+          });
+      },
+
+      removeParticle: (id) => {
+          set((state) => ({ particles: state.particles.filter(p => p.id !== id) }));
+      },
+
+      hatch: () => {
+          set({ eggPhase: false, bond: 100, hunger: MAX_STAT, thirst: MAX_STAT, happiness: MAX_STAT, energy: MAX_STAT, mood: 'happy' });
+      },
+
       updateStatsOverTime: () => {
          // This is intended to be called by a requestAnimationFrame loop or setInterval
          set(() => {
@@ -204,6 +284,25 @@ export const usePetStore = create<PetStore>()(
 
             if (elapsedHours < 0.01) return state; // Minimal time passed
 
+            if (state.eggPhase) {
+                // EGG DECAY LOGIC
+                let newWarmth = clamp(state.warmth - (DECAY_RATES_PER_HOUR.warmth * elapsedHours));
+                
+                // If it was wobbling while offline for a long time, tank stability
+                let newStability = state.stability;
+                if (state.isWobbling && elapsedHours > 0.1) {
+                    newStability = clamp(state.stability - 50);
+                }
+
+                return {
+                    ...state,
+                    warmth: newWarmth,
+                    stability: newStability,
+                    lastSavedTime: now
+                };
+            }
+
+            // CREATURE DECAY LOGIC
             let newHunger = state.hunger;
             let newThirst = state.thirst;
             let newHappiness = state.happiness;
