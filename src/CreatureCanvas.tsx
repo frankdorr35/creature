@@ -21,13 +21,24 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
 
     let animationFrameId: number;
     let time = 0;
+    let lastTime = performance.now();
 
     // Base properties
     const centerX = width / 2;
     const centerY = height / 2 + 50;
     
+    // Wandering state
+    let x = centerX;
+    let targetX = centerX;
+    let pauseTimer = 2; // Initial pause before first move
+    let direction = 1; // 1 for right, -1 for left
+    
     // Draw loop
     const render = () => {
+      const now = performance.now();
+      const dt = Math.min((now - lastTime) / 1000, 0.1); // delta time in seconds, capped
+      lastTime = now;
+
       ctx.clearRect(0, 0, width, height);
 
       // Environment (simple ground)
@@ -78,19 +89,75 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
               break;
       }
 
+      // Wandering logic
+      const isAction = mood === 'eating' || mood === 'drinking' || mood === 'playing' || isSleeping;
+      
+      let walkSpeed = 50; // pixels per second
+      let maxPause = 8;
+      let minPause = 2;
+
+      // Adjust based on mood
+      switch (mood) {
+          case 'happy':
+              walkSpeed = 80;
+              maxPause = 4;
+              minPause = 1;
+              break;
+          case 'sad':
+          case 'sick':
+              walkSpeed = 25;
+              maxPause = 12;
+              minPause = 5;
+              break;
+      }
+      
+      // Energy influence
+      walkSpeed *= (0.5 + (health / 200)); // Scales between 50% and 100% speed
+
+      if (!isAction) {
+          if (pauseTimer > 0) {
+              pauseTimer -= dt;
+          } else {
+              const dx = targetX - x;
+              if (Math.abs(dx) > 2) {
+                  direction = dx > 0 ? 1 : -1;
+                  x += direction * walkSpeed * dt;
+                  
+                  // Add walking bob to the idle yOffset
+                  yOffset += Math.abs(Math.sin(time * 8)) * 8; 
+                  
+                  // Slight lean forward while walking
+                  // (Handled via rotation if we wanted, but scale/translate is enough here)
+              } else {
+                  x = targetX;
+                  pauseTimer = minPause + Math.random() * (maxPause - minPause);
+                  // Pick new target within canvas bounds (with margin)
+                  const margin = 60;
+                  targetX = margin + Math.random() * (width - margin * 2);
+              }
+          }
+      }
+
       const bodyColor = health < 40 ? '#8e9b90' : '#4a90e2';
 
       ctx.save();
-      ctx.translate(centerX, centerY + yOffset);
-      ctx.scale(1, scaleY);
+      // Translate to the dynamic X position instead of centerX
+      ctx.translate(x, centerY + yOffset);
+      
+      // Scale handles flipping horizontally and vertical squish
+      ctx.scale(direction, scaleY);
       
       // Shadow
       if (!isSleeping) {
+         // Shadow needs to be un-flipped horizontally so light source is consistent
+         ctx.save();
+         ctx.scale(direction, 1); 
          ctx.fillStyle = 'rgba(0,0,0,0.2)';
          ctx.beginPath();
          // Shadow squishes opposite to bounce
          ctx.ellipse(0, 30 - yOffset, 40 + (yOffset * 0.5), 10, 0, 0, Math.PI * 2);
          ctx.fill();
+         ctx.restore();
       }
 
       // Body (blob shape)
