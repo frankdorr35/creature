@@ -56,6 +56,9 @@ const EggCanvas: React.FC<CanvasProps> = ({ width, height }) => {
     const centerX = width / 2;
     const centerY = height / 2 + 50;
     
+    // Map to track local visual state of particles spawned from store
+    const localParticles = new Map<string, { x: number, y: number }>();
+    
     // Particle system update loop integrated into render
     
     const render = () => {
@@ -193,22 +196,33 @@ const EggCanvas: React.FC<CanvasProps> = ({ width, height }) => {
 
       // --- Particles ---
       particles.forEach(p => {
-         // Update particle visually locally here for smoothness
-         p.y -= 0.5; // Float up
+         // Create local replica if we haven't seen this particle yet
+         if (!localParticles.has(p.id)) {
+             localParticles.set(p.id, { x: p.x, y: p.y });
+         }
+
+         const lp = localParticles.get(p.id)!;
+         
+         // Visual update (local only, no store mutation)
+         lp.y -= 0.5; // Float up
          if (!isHatching) {
             ctx.fillStyle = p.type === 'music' ? '#ff69b4' : '#4a90e2';
             ctx.font = '20px Arial';
-            ctx.fillText(p.type === 'music' ? '♫' : '💬', centerX + p.x, centerY + p.y);
+            ctx.fillText(p.type === 'music' ? '♫' : '💬', centerX + lp.x, centerY + lp.y);
          }
          
-         // In a real robust system, particle death would be handled in Zustand or via a unified event.
-         // For a quick visual, we'll just let them float off. Store cleanup could be tricky here.
-         // We will just let them accumulate and rely on the user not spamming, or clean them up by relying on React
-         if (p.y < -150) {
-             // To avoid state mutation during render, we'd normally queue this. We'll ignore it for this simple viz, or use setTimeout.
+         // If they float too high, remove from global store (which will then remove it from our next frame loop)
+         if (lp.y < -150) {
              setTimeout(() => removeParticle(p.id), 0);
          }
       });
+      
+      // Clean up local particle map for items that got removed from store
+      for (const [id] of localParticles) {
+          if (!particles.find(p => p.id === id)) {
+              localParticles.delete(id);
+          }
+      }
 
       animationFrameId = requestAnimationFrame(render);
     };

@@ -203,3 +203,36 @@ button.learned {
   gap: 10px;
   justify-content: center;
 }
+
+/* --- Egg Phase specific styles --- */
+.full-width-header {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.column-header {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.column-header .status-readout {
+  margin-bottom: 20px;
+}
+
+.wide-panel {
+  width: 100%;
+  max-width: 600px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.text-urgent {
+  color: #e74c3c;
+  font-weight: bold;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(1.05); opacity: 0.8; }
+}
