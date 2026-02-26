@@ -358,6 +358,9 @@ export const usePetStore = create<PetStore>()(
              if (state.eggPhase) {
                  const newWarmth = clamp(state.warmth - (DECAY_RATES_PER_HOUR.warmth / TICKS_PER_HOUR));
                  newState.warmth = newWarmth;
+                 if (state.isWobbling) {
+                     newState.stability = clamp(state.stability - 3);
+                 }
              } else {
                  const newHunger = clamp(state.hunger - (DECAY_RATES_PER_HOUR.hunger / TICKS_PER_HOUR));
                  const newThirst = clamp(state.thirst - (DECAY_RATES_PER_HOUR.thirst / TICKS_PER_HOUR));
