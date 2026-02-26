@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePetStore, MAX_STAT, ACTION_COOLDOWNS_MS } from './store';
 import CreatureCanvas from './CreatureCanvas';
 import EggCanvas from './EggCanvas';
@@ -80,25 +80,20 @@ function App() {
   }, [eggPhase, energy, isSleeping, sleep, wakeUp]);
 
   // Handle random egg wobble
+  const wobbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
       if (!eggPhase) return;
 
-      const attemptWobble = () => {
-          // Trigger wobble 30-90 seconds randomly
+      const scheduleWobble = () => {
           const nextWobbleIn = Math.random() * 60000 + 30000;
-          setTimeout(() => {
-              // We must use fresh state, so we just blindly trigger store action 
-              // which has safety checks
+          wobbleTimeoutRef.current = setTimeout(() => {
               triggerWobble();
-              
-              // Schedule next
-              attemptWobble();
+              scheduleWobble();
           }, nextWobbleIn);
       };
 
-      attemptWobble();
-      // Component unmount or phase change stops this chain effectively because 
-      // triggerWobble ignores actions if !eggPhase.
+      scheduleWobble();
+      return () => clearTimeout(wobbleTimeoutRef.current);
   }, [eggPhase, triggerWobble]);
 
 
