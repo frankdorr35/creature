@@ -524,7 +524,7 @@ const CreatureCanvas: React.FC<CanvasProps> = ({ width, height }) => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [mood, isSleeping, health, width, height]);
+  }, [mood, isSleeping, health, width, height, tricks]);
 
   return <canvas ref={canvasRef} width={width} height={height} style={{ display: 'block', margin: '0 auto' }} />;
 };
